@@ -1,29 +1,81 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Download, AlertTriangle, Package } from 'lucide-react';
 
-// Define types for download data
-interface DownloadData {
-  date: string;
-  downloads: number;
-  vulnerabilities: number;
+interface PackageAnalyticsProps {
+  packageInfo: {
+    name: string;
+    version: string;
+  } | null;
 }
 
-const PackageAnalytics: React.FC = () => {
-  const [selectedTimeRange, setSelectedTimeRange] = useState<string>('7d');
+const PackageAnalytics: React.FC<PackageAnalyticsProps> = ({ packageInfo }) => {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Sample data - in real app, this would come from NPM API
-  const downloadData: DownloadData[] = [
-    { date: '2024-10-18', downloads: 1234, vulnerabilities: 2 },
-    { date: '2024-10-19', downloads: 1456, vulnerabilities: 2 },
-    { date: '2024-10-20', downloads: 1789, vulnerabilities: 1 },
-    { date: '2024-10-21', downloads: 2100, vulnerabilities: 1 },
-    { date: '2024-10-22', downloads: 2300, vulnerabilities: 0 },
-    { date: '2024-10-23', downloads: 2500, vulnerabilities: 0 },
-    { date: '2024-10-24', downloads: 2700, vulnerabilities: 0 }
-  ];
+  useEffect(() => {
+    const fetchPackageData = async () => {
+      if (!packageInfo) return;
+      
+      setLoading(true);
+      setError(null);
+      
+      try {
+        console.log('Sending request with:', packageInfo); // Debug log
+        
+        const response = await fetch('http://localhost:3000/api/analyze', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          body: JSON.stringify({
+            packageName: packageInfo.name,
+            packageVersion: packageInfo.version
+          }),
+        });
+    
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+        }
+    
+        const jsonData = await response.json();
+        console.log('Received data:', jsonData); // Debug log
+        setData(jsonData);
+      } catch (err) {
+        console.error('Fetch error:', err);
+        setError(err instanceof Error ? err.message : 'An error occurred');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPackageData();
+  }, [packageInfo]); // Only re-run when packageInfo changes
+
+  if (!packageInfo) return null;
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center p-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <Alert variant="destructive">
+        <AlertDescription>{error}</AlertDescription>
+      </Alert>
+    );
+  }
+
+  if (!data) return null;
 
   return (
     <div className="space-y-6">
@@ -31,13 +83,13 @@ const PackageAnalytics: React.FC = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Package className="w-5 h-5" />
-            Package Performance Overview
+            Package Performance Overview: {packageInfo.name}@{packageInfo.version}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={downloadData}>
+              <LineChart data={data.downloads.daily}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="date" />
                 <YAxis />
@@ -65,16 +117,20 @@ const PackageAnalytics: React.FC = () => {
           <CardContent>
             <div className="space-y-2">
               <div className="flex justify-between">
-                <span>Total Downloads</span>
-                <span className="font-bold">14,079</span>
+                <span>Total Downloads (Last Week)</span>
+                <span className="font-bold">{data.downloads.total.toLocaleString()}</span>
               </div>
               <div className="flex justify-between">
                 <span>Daily Average</span>
-                <span className="font-bold">2,011</span>
+                <span className="font-bold">{data.downloads.averageDaily.toLocaleString()}</span>
               </div>
               <div className="flex justify-between">
                 <span>Growth Rate</span>
-                <span className="font-bold text-green-600">+14.8%</span>
+                <span className={`font-bold ${
+                  data.downloads.growthRate > 0 ? 'text-green-600' : 'text-red-600'
+                }`}>
+                  {data.downloads.growthRate > 0 ? '+' : ''}{data.downloads.growthRate}%
+                </span>
               </div>
             </div>
           </CardContent>
@@ -88,11 +144,24 @@ const PackageAnalytics: React.FC = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <Alert>
-              <AlertDescription>
-                2 medium severity vulnerabilities found in dependencies
-              </AlertDescription>
-            </Alert>
+            {data.security && Object.entries(data.security.vulnerabilities).some(([_, count]) => count > 0) ? (
+              <Alert variant="destructive">
+                <AlertDescription>
+                  Found vulnerabilities:
+                  {Object.entries(data.security.vulnerabilities)
+                    .filter(([_, count]) => count > 0)
+                    .map(([severity, count]) => (
+                      ` ${count} ${severity}`
+                    )).join(', ')}
+                </AlertDescription>
+              </Alert>
+            ) : (
+              <Alert>
+                <AlertDescription>
+                  No vulnerabilities found
+                </AlertDescription>
+              </Alert>
+            )}
           </CardContent>
         </Card>
       </div>
