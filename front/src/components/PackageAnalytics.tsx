@@ -45,6 +45,7 @@ const PackageAnalytics: React.FC<PackageAnalyticsProps> = ({ packageInfo }) => {
     
         const jsonData = await response.json();
         console.log('Received data:', jsonData); // Debug log
+        console.log('DEBUG: ', jsonData.downloads)
         setData(jsonData);
       } catch (err) {
         console.error('Fetch error:', err);
@@ -55,7 +56,7 @@ const PackageAnalytics: React.FC<PackageAnalyticsProps> = ({ packageInfo }) => {
     };
 
     fetchPackageData();
-  }, [packageInfo]); // Only re-run when packageInfo changes
+  }, [packageInfo]);
 
   if (!packageInfo) return null;
 
@@ -77,34 +78,80 @@ const PackageAnalytics: React.FC<PackageAnalyticsProps> = ({ packageInfo }) => {
 
   if (!data) return null;
 
+
+  const formatXAxis = (dateStr) => {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: '2-digit'
+    });
+  };
+  
+  const formatYAxis = (num) => {
+    if (num >= 1000000) {
+      return `${(num / 1000000).toFixed(1)}M`;
+    }
+    if (num >= 1000) {
+      return `${(num / 1000).toFixed(1)}K`;
+    }
+    return num;
+  };
+
+  const CustomTooltip = ({ active, payload, label }) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-white p-4 rounded-lg shadow-lg border border-gray-200">
+          <p className="text-sm text-gray-600">
+            {new Date(label).toLocaleDateString('en-US', {
+              month: 'long',
+              day: 'numeric',
+              year: 'numeric'
+            })}
+          </p>
+          <p className="text-sm font-semibold text-blue-600">
+            {payload[0].value.toLocaleString()} downloads
+          </p>
+        </div>
+      );
+    }
+    return null;
+  };
+
   return (
     <div className="space-y-6">
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Package className="w-5 h-5" />
-            Package Performance Overview: {packageInfo.name}@{packageInfo.version}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={data.downloads.daily}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis />
-                <Tooltip />
-                <Line 
-                  type="monotone" 
-                  dataKey="downloads" 
-                  stroke="#2563eb"
-                  strokeWidth={2} 
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </CardContent>
-      </Card>
+      <CardContent>
+        <div className="h-64">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart 
+              data={data.downloads.daily}
+              margin={{ top: 10, right: 30, left: 20, bottom: 5 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis 
+                dataKey="date" 
+                tickFormatter={formatXAxis}
+                interval="preserveStartEnd"
+                minTickGap={50}
+              />
+              <YAxis 
+                tickFormatter={formatYAxis}
+                width={60}
+              />
+              <Tooltip content={<CustomTooltip />} />
+              <Line 
+                type="monotone" 
+                dataKey="downloads" 
+                stroke="#2563eb"
+                strokeWidth={2}
+                dot={false}
+                activeDot={{ r: 6 }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </CardContent>
+    </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>

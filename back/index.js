@@ -21,14 +21,72 @@ async function getDownloadStats(packageName, period = 'last-week') {
   }
 }
 
-async function getDailyDownloads(packageName, days = 7) {
+
+async function getYearlyDownloads(packageName) {
   try {
-    const response = await axios.get(
-      `https://api.npmjs.org/downloads/range/last-${days}-days/${packageName}`
+    const metadataResponse = await axios.get(
+      `https://registry.npmjs.org/${packageName}`
     );
-    return response.data.downloads;
+    
+    const createdDate = new Date(metadataResponse.data.time.created);
+    const currentDate = new Date();
+
+    const formatDate = (date) => {
+      return date.toISOString().split('T')[0];
+    };
+    
+    const yearlyDownloads = [];
+    let startDate = new Date(createdDate);
+
+    startDate.setDate(1);
+    
+    while (startDate < currentDate) {
+      let endDate = new Date(startDate);
+      endDate.setFullYear(startDate.getFullYear() + 1);
+
+      if (endDate > currentDate) {
+        endDate = new Date(currentDate);
+      }
+
+      endDate.setDate(endDate.getDate() - 1);
+
+      if (startDate >= endDate) {
+        break;
+      }
+      
+      const start = formatDate(startDate);
+      const end = formatDate(endDate);
+      
+      try {
+        const response = await axios.get(
+          `https://api.npmjs.org/downloads/point/${start}:${end}/${packageName}`
+        );
+        
+        yearlyDownloads.push({
+          year: startDate.getFullYear(),
+          downloads: response.data.downloads,
+          start,
+          end
+        });
+      } catch (error) {
+        if (error.response?.status === 404) {
+          console.warn(`No data available for ${start} to ${end}`);
+        } else {
+          throw error;
+        }
+      }
+
+      startDate = new Date(endDate);
+      startDate.setDate(startDate.getDate() + 1);
+    }
+    
+    return yearlyDownloads;
+    
   } catch (error) {
-    console.error('Error fetching daily downloads:', error);
+    console.error('Error fetching yearly downloads:', error);
+    if (error.response?.data) {
+      console.error('API Error:', error.response.data);
+    }
     throw error;
   }
 }
@@ -62,6 +120,7 @@ async function checkVulnerabilities(packageName, packageVersion) {
         }
       }
     );
+    console.log('check vuln: ', response.data)
     return response.data;
   } catch (error) {
     console.error('Error checking vulnerabilities:', error);
@@ -78,7 +137,7 @@ app.post('/api/analyze', async (req, res) => {
 
     const [downloadStats, dailyDownloads, vulnerabilities, packageInfo] = await Promise.all([
       getDownloadStats(packageName),
-      getDailyDownloads(packageName),
+      getYearlyDownloads(packageName),
       checkVulnerabilities(packageName, packageVersion),
       getPackageInfo(packageName)
     ]);
