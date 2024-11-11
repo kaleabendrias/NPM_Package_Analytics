@@ -1,11 +1,17 @@
-import PackageAnalytics from "./components/PackageAnalytics"
+import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+
+import PackageForm from './components/PackageForm';
 
 
 function App() {
 
   return (
     <>
-      <PackageAnalytics />
+    <Router>
+      <Routes>
+        <Route path='/' element={<PackageForm />} />
+      </Routes>
+    </Router>
     </>
   )
 }
