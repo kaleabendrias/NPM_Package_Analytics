@@ -1,8 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Download, AlertTriangle, Package } from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Download, AlertTriangle } from "lucide-react";
 
 interface PackageAnalyticsProps {
   packageInfo: {
@@ -19,37 +27,39 @@ const PackageAnalytics: React.FC<PackageAnalyticsProps> = ({ packageInfo }) => {
   useEffect(() => {
     const fetchPackageData = async () => {
       if (!packageInfo) return;
-      
+
       setLoading(true);
       setError(null);
-      
+
       try {
-        console.log('Sending request with:', packageInfo); // Debug log
-        
-        const response = await fetch('http://localhost:3000/api/analyze', {
-          method: 'POST',
+        console.log("Sending request with:", packageInfo);
+
+        const response = await fetch("http://localhost:3000/api/analyze", {
+          method: "POST",
           headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
+            "Content-Type": "application/json",
+            Accept: "application/json",
           },
           body: JSON.stringify({
             packageName: packageInfo.name,
-            packageVersion: packageInfo.version
+            packageVersion: packageInfo.version,
           }),
         });
-    
+
         if (!response.ok) {
           const errorData = await response.json();
-          throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+          throw new Error(
+            errorData.error || `HTTP error! status: ${response.status}`
+          );
         }
-    
+
         const jsonData = await response.json();
-        console.log('Received data:', jsonData); // Debug log
-        console.log('DEBUG: ', jsonData.downloads)
+        console.log("Received data:", jsonData); // Debug log
+        console.log("DEBUG: ", jsonData.downloads);
         setData(jsonData);
       } catch (err) {
-        console.error('Fetch error:', err);
-        setError(err instanceof Error ? err.message : 'An error occurred');
+        console.error("Fetch error:", err);
+        setError(err instanceof Error ? err.message : "An error occurred");
       } finally {
         setLoading(false);
       }
@@ -78,15 +88,14 @@ const PackageAnalytics: React.FC<PackageAnalyticsProps> = ({ packageInfo }) => {
 
   if (!data) return null;
 
-
   const formatXAxis = (dateStr) => {
     const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: '2-digit'
+    return date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "2-digit",
     });
   };
-  
+
   const formatYAxis = (num) => {
     if (num >= 1000000) {
       return `${(num / 1000000).toFixed(1)}M`;
@@ -102,10 +111,10 @@ const PackageAnalytics: React.FC<PackageAnalyticsProps> = ({ packageInfo }) => {
       return (
         <div className="bg-white p-4 rounded-lg shadow-lg border border-gray-200">
           <p className="text-sm text-gray-600">
-            {new Date(label).toLocaleDateString('en-US', {
-              month: 'long',
-              day: 'numeric',
-              year: 'numeric'
+            {new Date(label).toLocaleDateString("en-US", {
+              month: "long",
+              day: "numeric",
+              year: "numeric",
             })}
           </p>
           <p className="text-sm font-semibold text-blue-600">
@@ -120,38 +129,34 @@ const PackageAnalytics: React.FC<PackageAnalyticsProps> = ({ packageInfo }) => {
   return (
     <div className="space-y-6">
       <Card>
-      <CardContent>
-        <div className="h-64">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart 
-              data={data.downloads.daily}
-              margin={{ top: 10, right: 30, left: 20, bottom: 5 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis 
-                dataKey="date" 
-                tickFormatter={formatXAxis}
-                interval="preserveStartEnd"
-                minTickGap={50}
-              />
-              <YAxis 
-                tickFormatter={formatYAxis}
-                width={60}
-              />
-              <Tooltip content={<CustomTooltip />} />
-              <Line 
-                type="monotone" 
-                dataKey="downloads" 
-                stroke="#2563eb"
-                strokeWidth={2}
-                dot={false}
-                activeDot={{ r: 6 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      </CardContent>
-    </Card>
+        <CardContent>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart
+                data={data.downloads.yearly}
+                margin={{ top: 10, right: 30, left: 20, bottom: 5 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis
+                  dataKey="startDate"
+                  interval="preserveStartEnd"
+                  minTickGap={50}
+                />
+                <YAxis tickFormatter={formatYAxis} width={60} />
+                <Tooltip content={<CustomTooltip />} />
+                <Line
+                  type="monotone"
+                  dataKey="downloads"
+                  stroke="#2563eb"
+                  strokeWidth={2}
+                  dot={false}
+                  activeDot={{ r: 6 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
@@ -165,18 +170,25 @@ const PackageAnalytics: React.FC<PackageAnalyticsProps> = ({ packageInfo }) => {
             <div className="space-y-2">
               <div className="flex justify-between">
                 <span>Total Downloads (Last Week)</span>
-                <span className="font-bold">{data.downloads.total.toLocaleString()}</span>
+                <span className="font-bold">
+                  {data.downloads.total.toLocaleString()}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span>Daily Average</span>
-                <span className="font-bold">{data.downloads.averageDaily.toLocaleString()}</span>
+                <span>{data.downloads.daily}</span>
               </div>
               <div className="flex justify-between">
                 <span>Growth Rate</span>
-                <span className={`font-bold ${
-                  data.downloads.growthRate > 0 ? 'text-green-600' : 'text-red-600'
-                }`}>
-                  {data.downloads.growthRate > 0 ? '+' : ''}{data.downloads.growthRate}%
+                <span
+                  className={`font-bold ${
+                    data.downloads.growthRate > 0
+                      ? "text-green-600"
+                      : "text-red-600"
+                  }`}
+                >
+                  {data.downloads.growthRate > 0 ? "+" : ""}
+                  {data.downloads.growthRate}%
                 </span>
               </div>
             </div>
@@ -191,22 +203,22 @@ const PackageAnalytics: React.FC<PackageAnalyticsProps> = ({ packageInfo }) => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {data.security && Object.entries(data.security.vulnerabilities).some(([_, count]) => count > 0) ? (
+            {data.security &&
+            Object.entries(data.security.vulnerabilities).some(
+              ([_, count]) => count > 0
+            ) ? (
               <Alert variant="destructive">
                 <AlertDescription>
                   Found vulnerabilities:
                   {Object.entries(data.security.vulnerabilities)
                     .filter(([_, count]) => count > 0)
-                    .map(([severity, count]) => (
-                      ` ${count} ${severity}`
-                    )).join(', ')}
+                    .map(([severity, count]) => ` ${count} ${severity}`)
+                    .join(", ")}
                 </AlertDescription>
               </Alert>
             ) : (
               <Alert>
-                <AlertDescription>
-                  No vulnerabilities found
-                </AlertDescription>
+                <AlertDescription>No vulnerabilities found</AlertDescription>
               </Alert>
             )}
           </CardContent>

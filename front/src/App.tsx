@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
-import PackageAnalytics from "./components/PackageAnalytics"
+
 import PackageForm from './components/PackageForm';
 
 
@@ -9,8 +9,7 @@ function App() {
     <>
     <Router>
       <Routes>
-        <Route path='/' element={<PackageAnalytics />} />
-        <Route path='/analysis' element={<PackageForm />} />
+        <Route path='/' element={<PackageForm />} />
       </Routes>
     </Router>
     </>

@@ -21,7 +21,6 @@ async function getDownloadStats(packageName, period = 'last-week') {
   }
 }
 
-
 async function getYearlyDownloads(packageName) {
   try {
     const metadataResponse = await axios.get(
@@ -65,8 +64,8 @@ async function getYearlyDownloads(packageName) {
         yearlyDownloads.push({
           year: startDate.getFullYear(),
           downloads: response.data.downloads,
-          start,
-          end
+          startDate: start,
+          endDate: end
         });
       } catch (error) {
         if (error.response?.status === 404) {
@@ -120,7 +119,6 @@ async function checkVulnerabilities(packageName, packageVersion) {
         }
       }
     );
-    console.log('check vuln: ', response.data)
     return response.data;
   } catch (error) {
     console.error('Error checking vulnerabilities:', error);
@@ -135,25 +133,32 @@ app.post('/api/analyze', async (req, res) => {
       return res.status(400).json({ error: 'Package name and packageVersion are required' });
     }
 
-    const [downloadStats, dailyDownloads, vulnerabilities, packageInfo] = await Promise.all([
+    const [downloadStats, yearlyDownloads, vulnerabilities, packageInfo] = await Promise.all([
       getDownloadStats(packageName),
       getYearlyDownloads(packageName),
       checkVulnerabilities(packageName, packageVersion),
       getPackageInfo(packageName)
     ]);
 
-    const oldestDownloads = dailyDownloads[0].downloads;
-    const newestDownloads = dailyDownloads[dailyDownloads.length - 1].downloads;
+    const currentDate = new Date();
+    const createdDate = new Date(packageInfo.time.created);
+    const daysSinceCreation = (currentDate - createdDate) / (1000 * 60 * 60 * 24);
+    const averageDailyDownloads = downloadStats.downloads / daysSinceCreation;
+
+    const oldestDownloads = yearlyDownloads[0].downloads;
+    const newestDownloads = yearlyDownloads[yearlyDownloads.length - 1].downloads;
     const growthRate = ((newestDownloads - oldestDownloads) / oldestDownloads) * 100;
 
     const response = {
       downloads: {
         total: downloadStats.downloads,
-        daily: dailyDownloads.map(day => ({
-          date: day.day,
-          downloads: day.downloads
+        daily: averageDailyDownloads,
+        yearly: yearlyDownloads.map(year => ({
+          year: year.year,
+          startDate: year.startDate,
+          endDate: year.endDate,
+          downloads: year.downloads
         })),
-        averageDaily: Math.round(downloadStats.downloads / 7),
         growthRate: Number(growthRate.toFixed(1))
       },
       security: {
